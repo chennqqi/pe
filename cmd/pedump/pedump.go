@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
-	"github.com/kjk/pe"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/kjk/u"
+
+	"debug/pe"
 )
 
+/*
 func main() {
 	args := os.Args[1:]
 	if len(args) == 0 {
@@ -33,13 +36,6 @@ func main() {
 
 	fmt.Printf("%v\n", pefile.Sections)
 
-	/*for _, val := range pefile.ImportDescriptors {
-		log.Println(val)
-		for _, val2 := range val.Imports {
-			log.Println(val2)
-		}
-	}*/
-
 	fmt.Print("\nDIRECTORY_ENTRY_IMPORT\n")
 	for _, entry := range pefile.ImportDescriptors {
 		for _, imp := range entry.Imports {
@@ -58,5 +54,18 @@ func main() {
 	for _, entry := range pefile.ExportDirectory.Exports {
 		log.Println(string(entry.Name))
 	}
+}
+*/
 
+func main() {
+	args := os.Args[1:]
+	if len(args) == 0 {
+		fmt.Print("Must specify the filename of the PE file\n")
+		return
+	}
+	pefile, err := pe.Open(args[0])
+	u.PanicIfErr(err)
+	defer pefile.Close()
+	spew.Dump(pefile.FileHeader)
+	spew.Dump(pefile.OptionalHeader)
 }
