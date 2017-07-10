@@ -17,7 +17,7 @@ its entries.
 The exports will be made available as a list of ImportData
 instances in the ImportDescriptors PE attribute.
 */
-func (self *PEFile) parseImportDirectory(rva, size uint32) (err error) {
+func (self *File) parseImportDirectory(rva, size uint32) (err error) {
 	self.ImportDescriptors = make([]*ImportDescriptor, 0)
 
 	for {
@@ -83,7 +83,7 @@ func (self *PEFile) parseImportDirectory(rva, size uint32) (err error) {
 	attribute "imports". Its keys will be the DLL names and the values
 	all the symbols imported from that object.
 */
-func (self *PEFile) parseImports(importDesc *ImportDescriptor) (err error) {
+func (self *File) parseImports(importDesc *ImportDescriptor) (err error) {
 	var table []*ThunkData
 	ilt, err := self.getImportTable(importDesc.Data.Characteristics, importDesc)
 	if err != nil {
@@ -175,7 +175,7 @@ func (self *PEFile) parseImports(importDesc *ImportDescriptor) (err error) {
 	return nil
 }
 
-func (self *PEFile) getImportTable(rva uint32, importDesc *ImportDescriptor) ([]*ThunkData, error) {
+func (self *File) getImportTable(rva uint32, importDesc *ImportDescriptor) ([]*ThunkData, error) {
 	// Setup variables
 	thunkTable := make(map[uint32]*ThunkData)
 	retVal := make([]*ThunkData, 0)
@@ -192,7 +192,7 @@ func (self *PEFile) getImportTable(rva uint32, importDesc *ImportDescriptor) ([]
 
 	maxLen := self.dataLen - importDesc.FileOffset
 	if rva > importDesc.Data.Characteristics || rva > importDesc.Data.FirstThunk {
-		maxLen = Max(rva-importDesc.Data.Characteristics, rva-importDesc.Data.FirstThunk)
+		maxLen = max(rva-importDesc.Data.Characteristics, rva-importDesc.Data.FirstThunk)
 	}
 	lastAddr := rva + maxLen
 
@@ -272,12 +272,12 @@ func (self *PEFile) getImportTable(rva uint32, importDesc *ImportDescriptor) ([]
 	return retVal, nil
 }
 
-func (self *PEFile) parseImports64(importDesc *ImportDescriptor) (err error) {
+func (self *File) parseImports64(importDesc *ImportDescriptor) (err error) {
 	// Todo not implemented yet
 	return nil
 }
 
-func (self *PEFile) getImportTable64(rva uint64) []*ThunkData64 {
+func (self *File) getImportTable64(rva uint64) []*ThunkData64 {
 	// todo not implemeted yet
 	return []*ThunkData64{}
 }

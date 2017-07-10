@@ -1,26 +1,29 @@
 package pe
 
 import (
-	"strings"
 	"fmt"
+	"strings"
 )
 
-var OrdNames = map[string]map[uint64]string {
-	"ws2_32.dll": WS2_32_ORD_NAMES,
-	"wsock32.dll": WS2_32_ORD_NAMES,
-	"oleaut32.dll": OLEAUT_32_ORD_NAMES,
-}
-
-func OrdLookup(libname string, ord uint64, makeName bool) string {
-	names, ok := OrdNames[strings.ToLower(libname)]
-	if ok {
+// OrdLookup returns known names for unnamed import
+func OrdLookup(libName string, ord uint64, makeName bool) string {
+	libName = strings.ToLower(libName)
+	var names map[uint64]string
+	switch libName {
+	case "ws2_32.dll", "wsock32.dll":
+		names = Ws32OrdNames
+	case "oleaut32.dll":
+		names = OLEAUT_32_ORD_NAMES
+	default:
+		return ""
+	}
+	if names != nil {
 		if name, ok := names[ord]; ok {
 			return name
 		}
 	}
 	if makeName {
 		return fmt.Sprintf("ord%d", ord)
-	} else {
-		return ""
 	}
+	return ""
 }

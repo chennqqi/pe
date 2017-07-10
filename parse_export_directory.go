@@ -16,7 +16,7 @@ its entries.
 The exports will be made available as a list of ExportData
 instances in the ExportDescriptors PE attribute.
 */
-func (self *PEFile) parseExportDirectory(rva, size uint32) (err error) {
+func (self *File) parseExportDirectory(rva, size uint32) (err error) {
 
 	exportDir := NewExportDirectory(self.getOffsetFromRva(rva))
 	start, _ := self.getDataBounds(rva, 0)
@@ -41,7 +41,7 @@ func (self *PEFile) parseExportDirectory(rva, size uint32) (err error) {
 	}
 
 	safetyBoundary := section.Data.VirtualAddress + section.Data.SizeOfRawData - exportDir.Data.AddressOfNames
-	numNames := Min(safetyBoundary/4, exportDir.Data.NumberOfNames)
+	numNames := min(safetyBoundary/4, exportDir.Data.NumberOfNames)
 
 	// A hash set for tracking seen ordinals
 	ordMap := make(map[uint16]bool)
@@ -94,10 +94,10 @@ func (self *PEFile) parseExportDirectory(rva, size uint32) (err error) {
 	section = self.getSectionByRva(exportDir.Data.AddressOfFunctions)
 	if section == nil {
 		log.Printf(errMsg, "AddressOfFunctions", exportDir.Data.AddressOfFunctions)
-		return errors.New(fmt.Sprintf(errMsg, "AddressOfFunctions", exportDir.Data.AddressOfFunctions))
+		return fmt.Errorf("%s %s %d", errMsg, "AddressOfFunctions", exportDir.Data.AddressOfFunctions)
 	}
 	safetyBoundary = section.Data.VirtualAddress + section.Data.SizeOfRawData - exportDir.Data.AddressOfFunctions
-	numNames = Min(safetyBoundary/4, exportDir.Data.NumberOfFunctions)
+	numNames = min(safetyBoundary/4, exportDir.Data.NumberOfFunctions)
 
 	fmt.Printf("Safety2 boundary %x, num names %d\n", safetyBoundary, numNames)
 	for i := uint32(0); i < numNames; i++ {

@@ -14,7 +14,7 @@ func main() {
 		fmt.Print("Must specify the filename of the PE file\n")
 		return
 	}
-	pefile, err := pe.NewPEFile(args[0])
+	pefile, err := pe.NewFile(args[0])
 	if err != nil {
 		log.Println("Ooopss looks like there was a problem")
 		log.Println(err)
