@@ -17,36 +17,36 @@ its entries.
 The exports will be made available as a list of ImportData
 instances in the ImportDescriptors PE attribute.
 */
-func (self *File) parseImportDirectory(rva, size uint32) (err error) {
-	self.ImportDescriptors = make([]*ImportDescriptor, 0)
+func (f *File) parseImportDirectory(rva, size uint32) (err error) {
+	f.ImportDescriptors = make([]*ImportDescriptor, 0)
 
 	for {
 
-		fileOffset := self.getOffsetFromRva(rva)
+		fileOffset := f.getOffsetFromRva(rva)
 		importDesc := NewImportDescriptor(fileOffset)
 
-		if (importDesc.Size + rva) > self.dataLen {
+		if (importDesc.Size + rva) > f.dataLen {
 			return errors.New("Not enough space for importDesc")
 		}
 
-		if err = self.parseHeader(&importDesc.Data, fileOffset, importDesc.Size); err != nil {
+		if err = f.parseHeader(&importDesc.Data, fileOffset, importDesc.Size); err != nil {
 			return err
 		}
 
-		log.Printf("0x%x == %s", importDesc.Data.Name, self.getStringAtRva(importDesc.Data.Name))
+		log.Printf("0x%x == %s", importDesc.Data.Name, f.getStringAtRva(importDesc.Data.Name))
 		if EmptyStruct(importDesc.Data) {
 			break
 		}
 
 		rva += importDesc.Size
 
-		importDesc.Dll = self.getStringAtRva(importDesc.Data.Name)
+		importDesc.Dll = f.getStringAtRva(importDesc.Data.Name)
 		if !validDosFilename(importDesc.Dll) {
 			importDesc.Dll = INVALID_IMP_NAME
 		}
 
-		if self.OptionalHeader64 != nil {
-			if err := self.parseImports64(importDesc); err != nil {
+		if f.OptionalHeader64 != nil {
+			if err := f.parseImports64(importDesc); err != nil {
 				return err
 			}
 			// Give pretty names to well known dll files
@@ -58,7 +58,7 @@ func (self *File) parseImportDirectory(rva, size uint32) (err error) {
 				}
 			}
 		} else {
-			if err := self.parseImports(importDesc); err != nil {
+			if err := f.parseImports(importDesc); err != nil {
 				return err
 			}
 			// Give pretty names to well known dll files
@@ -71,7 +71,7 @@ func (self *File) parseImportDirectory(rva, size uint32) (err error) {
 			}
 		}
 
-		self.ImportDescriptors = append(self.ImportDescriptors, importDesc)
+		f.ImportDescriptors = append(f.ImportDescriptors, importDesc)
 	}
 	return nil
 }
@@ -83,13 +83,13 @@ func (self *File) parseImportDirectory(rva, size uint32) (err error) {
 	attribute "imports". Its keys will be the DLL names and the values
 	all the symbols imported from that object.
 */
-func (self *File) parseImports(importDesc *ImportDescriptor) (err error) {
+func (f *File) parseImports(importDesc *ImportDescriptor) (err error) {
 	var table []*ThunkData
-	ilt, err := self.getImportTable(importDesc.Data.Characteristics, importDesc)
+	ilt, err := f.getImportTable(importDesc.Data.Characteristics, importDesc)
 	if err != nil {
 		return err
 	}
-	iat, err := self.getImportTable(importDesc.Data.FirstThunk, importDesc)
+	iat, err := f.getImportTable(importDesc.Data.FirstThunk, importDesc)
 	if err != nil {
 		return err
 	}
@@ -125,22 +125,22 @@ func (self *File) parseImports(importDesc *ImportDescriptor) (err error) {
 				imp.ImportByOrdinal = false
 				imp.HintNameTableRva = table[idx].Data.AddressOfData & addressMask
 
-				if err := self.parseHeader(&imp.Hint, imp.HintNameTableRva, 2); err != nil {
+				if err := f.parseHeader(&imp.Hint, imp.HintNameTableRva, 2); err != nil {
 					return err
 				}
 
-				imp.Name = self.getStringAtRva(table[idx].Data.AddressOfData + 2)
+				imp.Name = f.getStringAtRva(table[idx].Data.AddressOfData + 2)
 
 				if !validFuncName(imp.Name) {
 					imp.Name = INVALID_IMP_NAME
 				}
-				imp.NameOffset = self.getOffsetFromRva(table[idx].Data.AddressOfData + 2)
+				imp.NameOffset = f.getOffsetFromRva(table[idx].Data.AddressOfData + 2)
 			}
 			imp.ThunkOffset = table[idx].FileOffset
-			imp.ThunkRva = self.getRvaFromOffset(imp.ThunkOffset)
+			imp.ThunkRva = f.getRvaFromOffset(imp.ThunkOffset)
 		}
 
-		imp.Address = importDesc.Data.FirstThunk + self.OptionalHeader.Data.ImageBase + (idx * impOffset)
+		imp.Address = importDesc.Data.FirstThunk + f.OptionalHeader.Data.ImageBase + (idx * impOffset)
 
 		if len(iat) > 0 && len(ilt) > 0 && ilt[idx].Data.AddressOfData != iat[idx].Data.AddressOfData {
 			imp.Bound = iat[idx].Data.AddressOfData
@@ -175,7 +175,7 @@ func (self *File) parseImports(importDesc *ImportDescriptor) (err error) {
 	return nil
 }
 
-func (self *File) getImportTable(rva uint32, importDesc *ImportDescriptor) ([]*ThunkData, error) {
+func (f *File) getImportTable(rva uint32, importDesc *ImportDescriptor) ([]*ThunkData, error) {
 	// Setup variables
 	thunkTable := make(map[uint32]*ThunkData)
 	retVal := make([]*ThunkData, 0)
@@ -190,7 +190,7 @@ func (self *File) getImportTable(rva uint32, importDesc *ImportDescriptor) ([]*T
 	minAddressOfData := ^uint32(0)
 	maxAddressOfData := uint32(0)
 
-	maxLen := self.dataLen - importDesc.FileOffset
+	maxLen := f.dataLen - importDesc.FileOffset
 	if rva > importDesc.Data.Characteristics || rva > importDesc.Data.FirstThunk {
 		maxLen = max(rva-importDesc.Data.Characteristics, rva-importDesc.Data.FirstThunk)
 	}
@@ -215,8 +215,8 @@ func (self *File) getImportTable(rva uint32, importDesc *ImportDescriptor) ([]*T
 			return []*ThunkData{}, errors.New("data addresses too spread out")
 		}
 
-		thunk := NewThunkData(self.getOffsetFromRva(rva))
-		if err := self.parseHeader(&thunk.Data, thunk.FileOffset, thunk.Size); err != nil {
+		thunk := NewThunkData(f.getOffsetFromRva(rva))
+		if err := f.parseHeader(&thunk.Data, thunk.FileOffset, thunk.Size); err != nil {
 			msg := fmt.Sprintf("Error Parsing the import table.\nInvalid data at RVA: 0x%x", rva)
 			log.Println(msg)
 			return []*ThunkData{}, errors.New(msg)
@@ -272,12 +272,12 @@ func (self *File) getImportTable(rva uint32, importDesc *ImportDescriptor) ([]*T
 	return retVal, nil
 }
 
-func (self *File) parseImports64(importDesc *ImportDescriptor) (err error) {
+func (f *File) parseImports64(importDesc *ImportDescriptor) (err error) {
 	// Todo not implemented yet
 	return nil
 }
 
-func (self *File) getImportTable64(rva uint64) []*ThunkData64 {
+func (f *File) getImportTable64(rva uint64) []*ThunkData64 {
 	// todo not implemeted yet
 	return []*ThunkData64{}
 }
